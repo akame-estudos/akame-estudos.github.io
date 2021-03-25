@@ -1,0 +1,259 @@
+---
+title: "Qual local faz o melhor Miojinho?"
+author: "Tuts"
+date: "`r Sys.Date()`"
+output:
+  prettydoc::html_pretty:
+    theme: HPSTR
+    highlight: github
+    toc: true
+---
+
+```{r include=FALSE}
+## configuracoes de saida dos chunks
+knitr::opts_chunk$set(
+   warning = FALSE,
+   message = FALSE,
+   error = FALSE,
+   eval = TRUE,
+   fig.align = 'center',
+   fig.showtext = TRUE
+)
+```
+
+
+## Pacotes
+
+```{r}
+library(knitr) #rmarkdown
+library(tidyverse) #pacotes dos deuses
+library(sf) #mapas e geoshit
+library(spdep) #geoshit
+library(ggrepel) # legendas com repel no ggplot
+library(scales) #escalas
+library(FSA) #testes de hipóteses
+```
+
+
+## Leitura e preparação dos dados
+
+```{r}
+ramen <- read_csv("../data/ramen-ratings.csv")
+```
+
+- Já da para notar que a coluna `Stars` foi lida como string, isso é por conta de ter algumas linhas com `Unrated`. Caso use o `as.numeric()` esses casos viram `NA` e da tudo certo.
+```{r}
+ramen %>% 
+  glimpse()
+```
+```{r}
+ramen <- 
+  ramen %>% 
+  mutate(Stars = as.numeric(Stars))
+```
+
+- Agregar informação geográfica.
+
+```{r}
+mapa_mundo <- read_sf("mapa_mundi.geojson")
+```
+
+- É preciso corrigir alguns nomes para dar "match".
+
+```{r}
+mapa_mundo_fix <- 
+  mapa_mundo %>% 
+  select(continent, name_long) %>% 
+  mutate(Country = case_when(name_long == "Republic of Korea" ~ "South Korea",
+                             name_long == "United Kingdom" ~ "UK",
+                             name_long == "United States" ~ "USA",
+                             T ~ name_long))
+
+geo_ramen <- 
+  ramen %>% 
+  mutate(Country = case_when(Country == "Holland" ~ "Netherlands",
+                             Country == "Dubai" ~ "United Arab Emirates",
+                             Country == "Hong Kong" ~ "China",
+                             Country == "Singapore" ~ "Malaysia",
+                             Country == "Sarawak" ~ "Malaysia",
+                             Country == "United States" ~ "USA",
+                             T ~ Country)) %>% 
+  left_join(mapa_mundo_fix) %>% 
+  st_as_sf()
+```
+## Análise
+
+### Quantidade de amostras por país.
+
+```{r}
+geo_ramen %>% 
+  count(Country) %>% 
+  mutate(label = ifelse(n>quantile(n, .8), Country, NA)) %>% 
+  ggplot() +
+  geom_sf(data = mapa_mundo_fix, fill = "grey70", col = "grey70") +
+  geom_sf(aes(fill = n), col = NA) +
+  geom_label_repel(aes(label = label, geometry = geometry),
+                   stat = "sf_coordinates",
+                   col = 1, alpha = .7) +
+  theme_void() +
+  theme(legend.position = "bottom") + 
+  scale_fill_gradient("Amostras", low = "#f5d742", high = "#f55a42",
+                      breaks = c(1, 175, 350))
+```
+
+- Nota-se que há uma grande concentração das amostras entre os países da Ásia, sobretudo na China, Coreia do Sul e Japão. Outro país com grande quantidade é os EUA. Vê-se também que a África não possui muitos representantes. 
+
+
+### Quantidade de amostras por continente.
+
+```{r}
+geo_ramen %>% 
+  count(continent) %>% 
+  st_drop_geometry() %>% 
+  left_join(count(mapa_mundo_fix, continent) %>% select(-n)) %>% 
+  mutate(pct = n/sum(n),
+         pct = percent(pct, accuracy = .01),
+         lb = paste0(continent,"\n", pct)) %>% 
+  st_as_sf() %>% 
+  ggplot() + 
+  geom_sf(aes(fill=n), col=NA) +
+  geom_sf_label(aes(label = lb), alpha = .6) +
+  theme_void() +
+  theme(legend.position = "bottom") + 
+  scale_fill_gradient("Amostras", low = "#f5d742", high = "#f55a42",
+                      breaks = c(10, 1000, 2000))
+```
+- É possível ver que a Ásia possui aproximadamente 78% de todas as amostras, sendo o continente com mais marcas avaliadas disparadamente. O pŕoximo continente da lista é a América do Norte, com 15%. África e América do Sul tem uma representatividade menor que 1% no total de miojos.
+
+### Média de Score por país
+
+```{r}
+geo_ramen %>% 
+  group_by(Country) %>% 
+  summarise(score = mean(Stars, na.rm = T)) %>% 
+  ggplot() +
+  geom_sf(data = mapa_mundo_fix, fill = "grey70", col = "grey70") +
+  geom_sf(aes(fill = score), col = NA) +
+  theme_void() +
+  theme(legend.position = "bottom") + 
+  scale_fill_gradient("Score", low = "#fffc45", high = "#4b02b8")
+
+```
+
+- Os países com maior score médio são, em ordem, Brasil (4.35), Cambodja(4.2), Malaysia (4.15), Indonésia (4.07) e Japão (3.98). Equanto que Nigéria (1.5), Canadá (2.71) e Holanda (2.24) tem as piores médias. 
+
+- É importante levantar o ponto que algumas médias, como a do Brasil ou Nigéria foram feitas poucas amostras (5 e 1), levantando dúvidas sobre a representatividade dessa medida por país. 
+
+
+### Média de Score por continente
+
+```{r}
+geo_ramen %>% 
+  group_by(continent) %>% 
+  summarise(score = mean(Stars, na.rm = T)) %>% 
+  st_drop_geometry() %>% 
+  left_join(count(mapa_mundo_fix, continent) %>% select(-n)) %>% 
+  mutate(lb = paste0(continent,"\n",
+                     round(score, 2))) %>% 
+  st_as_sf() %>% 
+  ggplot() + 
+  geom_sf(aes(fill=score), col=NA) +
+  geom_sf_label(aes(label = lb), alpha = .6) +
+  theme_void() +
+  theme(legend.position = "bottom") + 
+  scale_fill_gradient("Score", low = "#fffc45", high = "#4b02b8")
+```
+
+### Existe correlaçao espacial na qualidade dos miojos?
+
+- Para responder isso será utilizado o índice I de Moran, uma medida de correlação espacial que varia de -1 a 1.
+
+- Primeiro é preciso criar a "vizinhança" de cada país.
+```{r}
+vizinhos <- 
+  geo_ramen %>%
+  group_by(Country) %>% 
+  summarise(score = mean(Stars, na.rm = T)) %>% 
+  poly2nb(.,
+          queen=TRUE) #opcao para dizer que nao precisa "encostar" 
+```
+- Agora é preciso criar "pesos" para cada vizinhança, no caso será usado o método mais simples que assume pesos iguais `style = W`.
+```{r}
+vizinhos_peso <- nb2listw(vizinhos,
+                          style="W",
+                          zero.policy=TRUE) #permitir regiões sem vizinhança
+```
+
+- Teste de hipótese e coeficiente I de Moran.
+
+>
+> Hipótese nula: Não existe correlação espacial (I=0)
+>
+> Hipótese alternativa: existe correlação espacial (I!=0)
+
+```{r}
+geo_ramen %>%
+  group_by(Country) %>% 
+  summarise(score = mean(Stars, na.rm = T)) %>% 
+  pull(score) %>% 
+  moran.mc(., vizinhos_peso, zero.policy = T, nsim = 10000, alternative = "less")
+```
+- Como o valor-p é alto (0.5) e a estatística é próxima de 0, não há evidências de correlação espacial em relação ao score.  :(
+
+
+### Existe diferença significativa entre as qualidades dos miojos entre os continentes?
+
+```{r}
+geo_ramen %>% 
+  ggplot(aes(Stars)) +
+  geom_histogram(bins = 15) +
+  facet_wrap(~continent, scales = "free_y")
+```
+
+- Como o comportamento da variável score é assimétrica e estranha primeiramente vou usar o teste não paramétrico de Kruskal–Wallis para testar se ao menos 1 continente difere dos demais. As hipóteses do teste são:
+
+>
+> Hipótese nula: não existe efeito do continente no score
+> 
+> Hipótese alternativa: existe efeito do continente no score
+
+```{r}
+kruskal.test(Stars ~ continent, data = geo_ramen)
+```
+- Como o valor-p foi praticamente 0, rejeita-se a hipótese de que os scores não diferem de acordo com o continente.
+
+- Como sabemos que pelo menos algum continente difere dos demais, é preciso testar par a par a fim de entender quem difere de quem. Para isso, usei o teste de Dunn para comparações múltiplas.
+
+- Tentativa de gráfico para comparações múltiplas:
+```{r}
+resultado_dunn <- 
+  dunnTest(Stars ~ continent,
+        data=geo_ramen,
+        method="bh")
+
+resultado_dunn$res %>% 
+  mutate(p.value = round(P.adj,4)) %>% 
+  select(Comparison, p.value) %>% 
+  mutate(sig = p.value < .05,
+         Comparison = as.character(Comparison),
+         group = Comparison) %>% 
+  separate(Comparison, into = c("C1", "C2"), sep = " - ") %>% 
+  gather("ordem", "continent", -c(p.value,sig,group)) %>% 
+  left_join(geo_ramen %>%
+              group_by(continent) %>%
+              summarise(score = mean(Stars, na.rm = T)) %>% 
+              st_drop_geometry()) %>% 
+  arrange(desc(score)) %>% 
+  mutate(continent = factor(continent, unique(continent))) %>% 
+  ggplot(aes(continent, score, group = group, col = sig)) +
+  geom_line(aes(alpha = ifelse(sig, 1, .8)), show.legend = F) +
+  geom_line(aes(x = 0, y = min(score))) +
+  scale_color_manual("p.value<0.05",values = c("black", "firebrick2"))
+  
+```
+
+
+
+- A partir dos testes múltiplos foi possível verificar que a qualidade dos miojos da Ásia é superior aos da América do Norte, Oceania e da Europa. Além disso, também há superioridade dos miojos Norte Americanos quando comparados com a Europa.
+
+- Não foi possível afirmar nada em relação às comparações da África e América do Sul, muito provavelmente pela baixa amostragem.
