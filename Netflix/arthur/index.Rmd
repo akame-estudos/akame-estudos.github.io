@@ -1,0 +1,385 @@
+---
+title: "TUM DUMM"
+output:
+  prettydoc::html_pretty:
+    theme: netflix
+    highlight: github
+---
+
+```{r include=FALSE}
+## configuracoes de saida dos chunks
+knitr::opts_chunk$set(
+   warning = FALSE,
+   message = FALSE,
+   error = FALSE,
+   eval = TRUE,
+   fig.align = 'center',
+   fig.showtext = TRUE
+)
+
+```
+
+
+## Introdução
+
+Aqui está uma análise dos dados de filmes e séries da netflix, disponíveis no kaggle em (https://www.kaggle.com/shivamb/netflix-shows).
+
+- Por **Arthur Rocha** - `r Sys.Date()`
+
+## Libs
+
+```{r}
+library(rmarkdown)
+library(tidyverse) #meta-lib com libs dos deuses
+library(scales) #escalas
+library(arules) # regras de associacao
+library(cluster)
+```
+
+
+```{r}
+# funcao para tabela sair em html 
+tb_bm <- function(tb){
+   knitr::kable(tb,
+                format.args = list(decimal.mark = ",", big.mark = "."))
+}
+
+tema_netflix <- 
+   theme_light() + 
+   theme(strip.background = element_rect(fill = "#434139"))
+```
+
+## Dados
+
+- Os dados possuem 7.787 linhas e 12 colunas.
+
+```{r}
+netflix <- read_csv("../data/netflix_titles.csv")
+```
+
+```{r}
+netflix %>% 
+  glimpse()
+```
+## Análise
+
+### Filme x Série
+
+- 69% do catálogo é formado por filmes e 31% por Séries (TV Shows).
+
+```{r}
+netflix %>% 
+   count(type, sort = T) %>% 
+   mutate(pct = percent(n/sum(n))) %>% 
+   tb_bm()
+```
+
+### Ano de lançamento
+
+- No dataset temos filmes datados de 1942 a 2021 e shows de tv entre 1925 até 2021.
+
+```{r}
+netflix %>% 
+   group_by(type) %>% 
+   mutate(lab = paste0("min: ", min(release_year),
+                       "\n", "max: ", max(release_year))) %>% 
+   ggplot(aes(release_year)) + 
+   geom_histogram(fill = "#e31e24", col = "#434139") + 
+   facet_wrap(~type, scales = "free_y") +
+   geom_text(aes(label = lab,  x = -Inf, y = Inf),
+             hjust = -0.1, vjust = 1.2, check_overlap = T) +
+   tema_netflix
+```
+
+### Duração
+
+- A maior parte das séries de TV tem duração de 1 temporada e o tempo médio de duração dos filmes no catálogo é de aproximadamente 99 minutos.
+
+```{r}
+netflix %>% 
+   mutate(duration = str_remove_all(duration, " Seasons| Season| min"),
+          duration = as.numeric(duration)) %>% 
+   select(type, duration) %>% 
+   mutate(type = ifelse(type == "Movie", "Movie (min)", "TV Show (Seasons)")) %>% 
+   group_by(type) %>% 
+   mutate(lab = paste0("min: ", min(duration),
+                       "\n", "max: ", max(duration),
+                       "\n", "media: ", round(mean(duration),2),
+                       "\n", "mediana: ", median(duration))) %>%
+   ggplot(aes(duration)) +
+   geom_histogram(fill = "#e31e24", col = "#434139") + 
+   facet_wrap(~type, scales = "free") +
+   geom_text(aes(label = lab,  x = Inf, y = Inf),
+             hjust = 1.1, vjust = 1.2, check_overlap = T) +
+   tema_netflix
+```
+
+### Quais gêneros estão associados?
+
+- No máximo são 3 gêneros em conjunto na coluna `listed_in`.
+
+```{r}
+#limpar TV Shows Movies etc.. generos que atrapalham a análise
+limpa_genero <- function(genero){
+   case_when(genero == "Movies" ~ NA_character_,
+             genero == "TV Shows"~ NA_character_,
+             genero %in% c("International TV Shows", "International Movies") ~ "International",
+             genero == "TV Dramas" ~ "Dramas",
+             genero == "TV Comedies" ~ "Comedies",
+             genero == "TV Action & Adventure" ~ "Action & Adventure",
+             T ~ genero)
+}
+
+# criar tabela com todos os gêneros listados
+tabela_generos <- 
+   netflix %>% 
+   select(listed_in) %>% 
+   separate(col = listed_in, into = paste0("gen", 1:3), sep = ", ") %>% 
+   gather(key = "posicao", value = "genero") %>% 
+   count(genero, sort = T) %>% 
+   mutate(genero = limpa_genero(genero)) %>% 
+   filter(!is.na(genero)) %>% 
+   distinct(genero)
+
+tabela_generos %>% 
+   head() %>% 
+   tb_bm()
+```
+
+- Antes da análise é preciso criar uma tabela com cada coluna representado um gênero (booleano) e cada linha representando um filme.
+
+```{r}
+#funcao para criar flag de generos
+cria_coluna_genero <- function(dados, genero){
+   dados %>% 
+      mutate(genero_flag = str_detect(listed_in, genero)) %>% 
+      plyr::rename(c("genero_flag" = genero)) %>% 
+      select(-listed_in)
+}
+```
+
+```{r}
+#aplicando a funcao nos dados e criando colunas
+tb_flag_generos <- 
+   map_dfc(.x = tabela_generos$genero,
+           .f = ~ cria_coluna_genero(select(netflix, listed_in), .x))
+#OBS: map_dfc retorna um dataframe "colando" por colunas
+```
+
+```{r}
+tb_flag_generos %>% 
+   head() %>% 
+   select(1:4) %>% 
+   tb_bm()
+```
+
+
+- Usar o algorítmo **Apriori** para achar as relações entre os gêneros.
+
+>
+> OBS:
+>
+> Entenda **Suporte** como a porcentagem que ocorre o conjunto **lhs** e **rhs** na base toda
+>
+> Entenda **Confiança** como a porcentagem que ocorre **rhs** dado que ocorre **lhs**
+>
+
+
+```{r echo = T, results = 'hide'}
+regras_associacao <- 
+   tb_flag_generos %>% 
+   apriori(parameter = list(support=0.01, #aparece em pelo menos 1% da base
+                            confidence=0.5, #no minimo 30% dentro de um estrato
+                            maxlen=2) #generos 2 a 2
+           )
+```
+
+```{r echo = T, results = 'hide'}
+tb_regras <- 
+   regras_associacao %>% 
+   sort(by="confidence") %>% 
+   inspect()
+```
+
+```{r}
+tb_regras %>% 
+   select(lhs, rhs, support, confidence) %>% 
+   mutate_if(is.numeric, percent) %>% 
+   tb_bm()
+```
+
+- Apesar de algumas relações óbvias, é possível tirar alguns insights interessantes como:
+   - 96% dos filmes ou séries que apresentam o gênero `Science & Nature TV` são documentários;
+   - 76% dos filmes independentes são Dramas
+
+
+## Sistema de recomendação:
+
+- A ideia aqui é tentar criar um sistema de recomendação baseado nas características dos filmes e séries.
+
+### Criando subgrupos manualmente
+
+- A primeira coisa será separar em subgrupos de filmes e séries:
+
+```{r}
+series <-
+   netflix %>% 
+   filter(type != "Movie")
+
+filmes <- 
+   netflix %>% 
+   filter(type == "Movie")
+```
+
+- Também separei por classificação de idade para não correr o risco de recomendar filmes maduros para crianças e nem o contrário.
+
+```{r}
+## separar series em infantis e maduras
+series_infantis <- 
+   series %>% 
+   filter(str_detect(rating, "TV-Y") | str_detect(listed_in, "Kid"))
+
+series_maduras <- 
+   series %>% 
+   filter(!show_id %in% series_infantis$show_id)
+
+## separar filmes em infantis e maduros
+filmes_infantis <- 
+   filmes %>% 
+   filter(str_detect(rating, "TV-Y") | str_detect(listed_in, "Children"))
+
+filmes_maduros <- 
+   filmes %>% 
+   filter(!show_id %in% filmes_infantis$show_id)
+```
+
+
+### Criando matrizes de dissimilaridade
+
+- Para cada subgrupo é preciso criar uma matriz de dissimilaridade. No caso optei pela distância de gower (usando o país, ano de lançamento, classificação, duração e gênero)
+
+```{r}
+#funcao para criar matrizes de dissimilaridade
+cria_dissimilaridade <- function(dados){
+   dados %>% 
+   select(country, release_year, rating, duration, listed_in) %>% 
+   mutate(duration = str_remove_all(duration, " Seasons| Season| min"),
+          duration = as.numeric(duration)) %>% 
+   mutate_if(is.character, as.factor) %>%
+   daisy(metric = "gower", stand = F)
+}
+
+### matrizes ##############
+dist_series_infantis <- 
+   series_infantis %>% 
+   cria_dissimilaridade()
+
+dist_series_maduras <- 
+   series_maduras %>% 
+   cria_dissimilaridade()
+
+dist_filmes_infantis <- 
+   filmes_infantis %>% 
+   cria_dissimilaridade()
+
+dist_filmes_maduros <- 
+   filmes_maduros %>% 
+   cria_dissimilaridade()
+```
+
+### Criar a função que retorna sugestões
+
+- A ideia aqui é encapsular tudo em função que retorna n sugestões de títulos similares.
+
+- OBS: é usado o título como identificador do filme/série (nesse dataset não existem títulos repetidos).
+
+```{r}
+titulos_similares <- function(titulo, n){
+   
+   posicao <- function(dados){
+      which(dados$title == titulo) %>% 
+         as.numeric()
+   }
+   
+   n_similar_index <- function(dis_matrix, m){
+      dis_matrix %>% 
+      as.matrix() %>% 
+      .[,m] %>% 
+      sort() %>% 
+      .[1:(n+1)] %>% 
+      names() %>% 
+      as.numeric()
+   }
+
+
+   #verificar qual categoria em que se encaixa o titulo
+   categoria <- case_when(titulo %in% filmes_infantis$title ~ "filmes_infantis",
+                          titulo %in% filmes_maduros$title ~ "filmes_maduros",
+                          titulo %in% series_infantis$title ~ "series_infantis",
+                          titulo %in% series_maduras$title ~ "series_maduras",
+                          T ~ "fora_do_catalogo")
+
+   #tive que usar o switch pq o case_when tava bugando
+   posicao_linha <-
+      switch(categoria,
+         "filmes_infantis" = posicao(filmes_infantis),
+         "filmes_maduros"  = posicao(filmes_maduros),
+         "series_infantis" = posicao(series_infantis),
+         "series_maduras"  = posicao(series_maduras)
+         )
+
+   if (categoria != "fora_do_catalogo") {
+      similares_index <- 
+      switch(categoria,
+         "filmes_infantis" = n_similar_index(dist_filmes_infantis, posicao_linha),
+         "filmes_maduros"  = n_similar_index(dist_filmes_maduros, posicao_linha),
+         "series_infantis" = n_similar_index(dist_series_infantis,posicao_linha),
+         "series_maduras"  = n_similar_index(dist_series_maduras,posicao_linha)
+      )   
+      
+      
+      similares <- 
+         switch(categoria,
+         "filmes_infantis" = slice(filmes_infantis, similares_index),
+         "filmes_maduros"  = slice(filmes_maduros, similares_index),
+         "series_infantis" = slice(series_infantis, similares_index),
+         "series_maduras"  = slice(series_maduras, similares_index)
+      )   
+         
+      
+      return(similares)
+   } else {
+      cat("Título Fora do Catálogo!")
+   }
+}
+
+```
+
+
+### Testes do recomendador:
+
+- Filme **"A Love Story"** (drama romântico produzido nas Filipinas):
+
+```{r}
+titulos_similares("A Love Story", n = 3) %>% 
+   paged_table()
+```
+
+- Série **"Friends"**:
+
+```{r}
+titulos_similares("Friends", 8) %>% 
+   paged_table()
+```
+
+- Filme **Matrix**:
+
+```{r}
+titulos_similares("The Matrix", 5) %>% 
+   paged_table()
+```
+
+## Considerações
+
+- Para melhorar o recomendador é possivel usar as outras colunas como a descrição, diretores e cast, mas é preciso fazer a tratativa dessas colunas para conseguir mensurar uma distância.
+
