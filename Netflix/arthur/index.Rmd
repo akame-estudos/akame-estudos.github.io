@@ -34,6 +34,8 @@ library(tidyverse) #meta-lib com libs dos deuses
 library(scales) #escalas
 library(arules) # regras de associacao
 library(cluster)
+library(igraph)
+library(networkD3)
 ```
 
 
@@ -54,7 +56,7 @@ tema_netflix <-
 - Os dados possuem 7.787 linhas e 12 colunas.
 
 ```{r}
-netflix <- read_csv("../data/netflix_titles.csv")
+netflix <- read_csv("netflix_titles.csv")
 ```
 
 ```{r}
@@ -378,6 +380,43 @@ titulos_similares("Friends", 8) %>%
 titulos_similares("The Matrix", 5) %>% 
    paged_table()
 ```
+
+### Tentativa de visualização das relações
+
+- Para **Filmes Maduros**
+
+```{r}
+
+#transformar em matriz
+m_dist_filmes_maduros <- as.matrix(dist_filmes_maduros)
+
+#pegar amostra da matriz para nao ficar mt pesado
+m_dist_filmes_maduros <- m_dist_filmes_maduros[1:500,1:500]
+
+#colocar identificador
+colnames(m_dist_filmes_maduros) <- filmes_maduros$title[1:500]
+
+#criando grafo
+graf_filmes_maduros <- graph.adjacency(m_dist_filmes_maduros,
+                                        weighted=TRUE)
+
+#cortando nós inuteis
+mst_filmes_maduros <- mst(graf_filmes_maduros)
+wc_filmes_maduros <- cluster_walktrap(mst_filmes_maduros)
+grupos_filmes_maduros <- membership(wc_filmes_maduros)
+
+```
+
+```{r}
+grafo_d3_filmes_maduros <- igraph_to_networkD3(mst_filmes_maduros,
+                                               group = grupos_filmes_maduros)
+
+forceNetwork(Links = grafo_d3_filmes_maduros$links,
+             Nodes = grafo_d3_filmes_maduros$nodes, 
+             Source = 'source', Target = 'target', 
+             NodeID = 'name', Group = "group", zoom = T)
+```
+
 
 ## Considerações
 
