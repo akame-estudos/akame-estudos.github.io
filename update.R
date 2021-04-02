@@ -60,7 +60,7 @@ cria_array <- function(nome_pessoa){
          paste(
            sapply(seq_len(nrow(dados_array)),
                   cria_objeto,
-                  nome_pessoa = "arthur",
+                  nome_pessoa = nome_pessoa,
                   dados = dados_array), collapse = ",\n"
          ),
          ']')
