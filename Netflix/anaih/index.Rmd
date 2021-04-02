@@ -1,0 +1,168 @@
+---
+title: "Análise Netflix"
+author: "Anaih"
+date: "`r Sys.Date()`"
+output:
+  prettydoc::html_pretty:
+    theme: leonids
+    highlight: github
+---
+
+## Libs
+```{r message=FALSE, warning=FALSE}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(forcats)
+library(hrbrthemes)
+```
+
+## Dataset
+
+```{r message=FALSE, warning=FALSE}
+
+dados_netflix = read.csv(file = "../data/netflix_titles.csv")
+# dados_nomes = read.csv(file = "../anaih/name_gender_all.csv")
+
+View(dados_netflix)
+str(dados_netflix)
+
+
+```
+
+## Arrumando data e pais
+```{r message=FALSE, warning=FALSE}
+dados_netflix <-
+dados_netflix %>% 
+  mutate(date_added=as.character(date_added))
+
+dados_netflix <-
+dados_netflix %>% 
+   separate(col = date_added, into = paste0("date_added",1:2) , sep = ", ")
+
+dados_netflix <-
+dados_netflix %>% 
+   separate(col = country, into = paste0("country",1:2) , sep = ", ")
+
+```
+
+## Gráfico volumes de séries e filmes
+
+```{r fig.width=12, message=FALSE, warning=FALSE}
+
+ df_group <- 
+  dados_netflix %>% 
+  mutate(id =1) %>% 
+  group_by(date_added2,type) %>% 
+  count() %>% 
+  group_by(date_added2) %>% 
+  mutate(tot_ano=sum(n)) %>% 
+  ungroup() %>% 
+  mutate(prop_ano=n/tot_ano) %>% 
+  as.data.frame()
+
+df_group %>% 
+  ggplot( aes(x=date_added2, y=prop_ano, group=type, color=type)) +
+    geom_line()+ 
+  theme_minimal()
+
+df_group %>% 
+  ggplot( aes(x=date_added2, y=n, group=type, color=type)) +
+    geom_line()+ 
+  theme_minimal()
+```
+
+## Gráfico volumes de séries e filmes por país
+
+```{r fig.width=12, message=FALSE, warning=FALSE}
+
+
+dados_netflix %>% 
+  count(country1,sort = T) 
+
+dados_netflix <-
+dados_netflix %>% 
+  mutate(country3 = fct_lump(country1, n = 4))
+  
+
+df_group2 <- 
+  dados_netflix %>% 
+  mutate(id =1) %>% 
+  group_by(date_added2,type,country3) %>% 
+  count() %>% 
+  group_by(date_added2,type) %>% 
+  mutate(tot_ano=sum(n)) %>% 
+  ungroup() %>% 
+  mutate(prop_pais=n/tot_ano) %>% 
+  as.data.frame()
+
+df_group2 %>% 
+  ggplot( aes(x=date_added2, y=prop_pais, group=country3, color=country3))+    geom_line()+ 
+  theme_minimal() +
+  facet_wrap(~type)
+  
+
+df_group2 %>% 
+  ggplot( aes(x=date_added2, y=n, group=country3, color=country3))+    geom_line()+ 
+  theme_minimal() +
+  facet_wrap(~type)
+  
+
+
+```
+
+
+## Arruma base names 
+
+```{r fig.width=12, message=FALSE, warning=FALSE}
+
+dados_netflix <-
+dados_netflix %>% 
+   separate(col = director, into = paste0("director",1:2) , sep = ", ")
+
+dados_netflix <-
+dados_netflix %>% 
+   separate(col = director1, into = paste0("director",3:4) , sep = " ") 
+
+
+dados_nomes = read.csv(file = "../anaih/name_gender_all.csv",header = F)
+
+dados_nomes <-
+dados_nomes %>% 
+  mutate(V1=as.character(V1))
+
+dados_ijoin <- inner_join(dados_netflix, dados_nomes, by=c("director3" = "V1"))
+
+
+```
+
+## Mulheres nos filmes e series
+
+```{r fig.width=12, message=FALSE, warning=FALSE}
+
+dados_ijoin %>% 
+  count(V2,sort = T) 
+
+df_group3 <- 
+  dados_ijoin %>% 
+  mutate(id =1) %>% 
+  group_by(date_added2,type,V2) %>% 
+  count() %>% 
+  group_by(date_added2,type) %>% 
+  mutate(tot_ano=sum(n)) %>% 
+  ungroup() %>% 
+  mutate(prop_sex=n/tot_ano) %>% 
+  as.data.frame()
+
+df_group3 %>% 
+  ggplot( aes(x=date_added2, y=prop_sex, group=V2, color=V2))+    geom_line()+ 
+  theme_minimal() +
+  facet_wrap(~type)
+
+df_group3 %>% 
+  ggplot( aes(x=date_added2, y=n, group=V2, color=V2))+    geom_line()+ 
+  theme_minimal() +
+  facet_wrap(~type)
+
+```
+
