@@ -8,7 +8,7 @@ const arthur = [
  const anaih = [
 {"projeto":"Netflix",
 "descricao":"Análise de dados do catálogo de filmes e séries da Netflix.",
-"link":"https://akame-estudos.github.io/Netflix/arthur"}] 
+"link":"https://akame-estudos.github.io/Netflix/anaih"}] 
  const ketlin = [
 ] 
  const leps = [
