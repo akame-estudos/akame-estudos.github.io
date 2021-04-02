@@ -7,6 +7,7 @@ diretories <- list.dirs(".", recursive = F)
 ## ignorar algumas pastas
 ignore_folders <- c("./main_page_files",
                     "./.git",
+                    "./.github",
                     "./fonts",
                     "./arthur",
                     "./anaih",
