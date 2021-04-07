@@ -1,0 +1,533 @@
+---
+title: "Nextflix Análise, cluster"
+author: "Ketlin Hoffmam"
+date: "`r Sys.Date()`"
+output:
+  prettydoc::html_pretty:
+    theme: Cayman
+    highlight: github
+---
+
+---
+title: "Nextflix Análise, cluster"
+author: "Ketlin Hoffmam"
+date: "`r Sys.Date()`"
+output:
+  prettydoc::html_pretty:
+    theme: Cayman
+    highlight: github
+---
+
++ O banco de dados contém informações de 7787 títulos de filmes / séries da Netflix. As variáveis estão listadas a seguir: 
+
++ Tipo: a categoria do programa, pode ser um filme ou uma série;
++ Título: nome da série ou filme;
++ Diretor: nome do (s) diretor (es);
++ Elenco: nome dos atores; 
++ País: nome dos países em que o título está disponível para assistir na Netflix;
++ Data adição: data em que o título foi adicionado ao Netflix;
++ Ano de lançamento:  ano de lançamento do filme ou série;
++ Classificação: classificação indicativa do título;
++ Duração: tempo de duração da série ou filme;
++ Listado em: gênero da série ou filme;
++ Descrição: algum texto que descreve a série ou filme;
+
+
+
+```{r, results= "hide",warning=FALSE, message=FALSE,echo=FALSE}
+# install.packages("countrycode")
+
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+
+netflixdata<-read.csv("netflix_titles.csv")
+
+colnames(netflixdata)
+
+
+```
+<br>
++ Sobre a categoria do programa, temos 69% de filmes e 31% de séries.
+
+```{r, results= "hide",warning=FALSE, message=FALSE, fig.width =6, fig.height = 4, dpi = 250}
+
+
+a<-
+netflixdata %>% 
+  select(type) %>% 
+  group_by(type) %>% 
+  count() %>% 
+ as.data.frame() %>%
+  mutate(soma = sum(n)) %>% 
+  mutate(percentual = n/soma) %>% 
+  mutate(percentual=round(percentual,2))
+
+
+ggplot(a, aes(x="", y =percentual, fill= type))+
+ geom_bar(width = 1, stat = "identity")+
+  coord_polar("y")+scale_fill_brewer(palette="Dark2") +
+   #  blank_theme +
+   # theme(axis.text.x=element_blank()) +
+ geom_text(aes(y = a$percentual/4 + c(0, cumsum(a$percentual)[-length(a$percentual)]), 
+                label = 1-a$percentual ), size=5)
+
+
+
+```
+
+
++ Top 10 Diretores
+
+```{r,warning=FALSE, message=FALSE, fig.width = 11, fig.height = 5, dpi = 250}
+netflixdata %>% 
+  select(director) %>% 
+  separate(col=director,
+           into = paste('resp',1:11), sep=', ') %>% 
+select(starts_with("resp")) %>% 
+   gather(key='id',value='respostas') %>% 
+  group_by(respostas) %>% 
+  count() %>% 
+arrange(desc(n)) %>% 
+  na.omit(n) %>% 
+filter(respostas != "") %>% 
+  as.data.frame() %>% 
+  top_n(10) %>% 
+setNames(c("Diretor", "Número de filmes / TV Show")) %>% 
+  ggplot(aes(x = reorder(Diretor,`Número de filmes / TV Show`), y = `Número de filmes / TV Show`, fill=x)) +
+  geom_bar(stat = 'identity', colour = "NA", fill = "darksalmon") + 
+  labs(x = "", y = "")  +
+  coord_flip() 
+  
+```
+
++ Nomes mais evidentes nos elencos dos títulos disponíveis na plataforma.
+
+```{r, fig.width = 11, fig.height = 5, dpi = 250, warning=FALSE, message=FALSE}
+netflixdata %>% 
+  select(cast) %>% 
+  separate(col=cast,
+           into = paste('resp',1:15), sep=', ') %>% 
+select(starts_with("resp")) %>% 
+   gather(key='id',value='respostas') %>% 
+  group_by(respostas) %>% 
+  count() %>% 
+arrange(desc(n)) %>% 
+  na.omit(n) %>% 
+filter(respostas != "") %>% 
+  as.data.frame() %>% 
+  top_n(9) %>% 
+setNames(c("Elenco", "Número de filmes / TV Show")) %>% 
+  ggplot(aes(x = reorder(Elenco,`Número de filmes / TV Show`), y = `Número de filmes / TV Show`)) +
+  geom_bar(stat = 'identity', colour = "NA", fill = "darksalmon") + 
+  labs(x = "", y = "")  +
+  coord_flip() 
+  
+```
+
++ Abaixo podemos ver as regiões que contém mais de 100 filmes disponíveis para visualização na plataforma. Os Estados Unidos é o país que tem mais filmes disponíveis.
+
+```{r,fig.width = 11, fig.height = 5, dpi = 250, warning=FALSE, message=FALSE}
+netflixdata %>% 
+  select(country, type) %>% 
+  filter(type =="Movie") %>%
+  separate(col=country,
+           into = paste('resp',1:30), sep=', ') %>% 
+select(starts_with("resp")) %>% 
+   gather(key='id',value='respostas') %>% 
+  group_by(respostas) %>% 
+  count() %>% 
+arrange(desc(n)) %>% 
+  na.omit(n) %>% 
+filter(respostas != "") %>% 
+  as.data.frame()%>%
+  top_n(10) %>%
+setNames(c("Região", "Número de filmes")) %>% 
+  ggplot(aes(x = reorder(Região,`Número de filmes`), y = `Número de filmes`)) +
+  geom_bar(stat = 'identity', colour = "NA", fill = "cadetblue3") + 
+  labs(x = "", y = "")  +
+  coord_flip() 
+
+  
+```
+
++ Top 10 países com mais números de séries disponíveis para assistir.
+
+```{r, fig.width = 11, fig.height = 5, dpi = 250, warning=FALSE, message=FALSE}
+netflixdata %>% 
+  select(country, type) %>% 
+  filter(type =="TV Show") %>%
+  separate(col=country,
+           into = paste('resp',1:20), sep=', ') %>% 
+select(starts_with("resp")) %>% 
+   gather(key='id',value='respostas') %>% 
+  group_by(respostas) %>% 
+  count() %>% 
+arrange(desc(n)) %>% 
+  na.omit(n) %>% 
+filter(respostas != "") %>% 
+  as.data.frame()%>%
+  top_n(10) %>%
+setNames(c("Região", "Número de TV Show")) %>% 
+  setNames(c("Região", "Número de TV Show")) %>% 
+  ggplot(aes(x = reorder(Região,`Número de TV Show`), y = `Número de TV Show`)) +
+  geom_bar(stat = 'identity', colour = "NA", fill = "cadetblue3") + 
+  labs(x = "", y = "")  +
+  coord_flip() 
+  
+```
+
++ Quanto tempo o Netflix leva para colocar um filme, após o seu lançamento? Para isso, vamos excluir os títulos que tem data de lançamento menor do que a existência da Netflix (pode ser verificada a partir da primeira inclusão. Podemos ver que foi em 2008), a fim de não influenciar a conclusão de uma forma errônea.
+
+```{r, fig.width = 11, fig.height = 5, dpi = 250, warning=FALSE, message=FALSE}
+netflixdata %>%
+  select(date_added, type) %>% 
+  separate(col=date_added,
+           into = paste('resp',1:2), sep=', ') %>% 
+  select(`resp 2`, type) %>% 
+  # filter(type == "Movie") %>% 
+  group_by(`resp 2`) %>% 
+  count(type) %>% 
+  na.omit(n) %>% 
+  arrange(`resp 2`) %>% 
+ ggplot(aes(x = `resp 2` , y = n, group = type, colour = type)) +
+  geom_line(size = 3)
+```
+
++ Qual a quantidade de filmes é adicionado no mesmo ano de lançamento? A resposta é 35%. Já 83% dos filmes são adicionados com até 5 anos de diferença entre as datas.
+```{r, fig.width = 11, fig.height = 5, dpi = 250, warning=FALSE, message=FALSE}
+a<-netflixdata %>%
+  select(release_year, type) %>% 
+  filter(type == "Movie")
+  
+ b<- netflixdata %>% 
+  select(date_added, type) %>% 
+   filter(type == "Movie") %>% 
+  separate(col=date_added,
+           into = paste('resp',1:2), sep=', ') %>% 
+  select(`resp 2`)
+ 
+ c<-bind_cols(a,b) %>% 
+     filter(release_year >= 2008)
+
+ c %>% 
+  mutate(release_year = as.numeric(release_year),
+         `resp 2` = as.numeric(`resp 2`),
+         dif = (`resp 2`-release_year)) %>% 
+   group_by(dif) %>% 
+   count() %>% 
+   filter(dif != -3) %>%
+   filter(dif != -2 ) %>%
+   filter(dif != -1) %>%
+   as.data.frame() %>% 
+   mutate(total = sum(n)) %>% 
+   mutate( Percentual = (n / total)) %>% 
+   as.data.frame() %>% 
+   top_n(6, ((n))) %>% 
+   mutate(total_perc = sum(Percentual)) %>% 
+   select(dif, Percentual) %>% 
+    ggplot(aes(x = reorder(dif,Percentual), y = Percentual)) +
+  geom_bar(stat = 'identity', colour = "NA", fill = "cadetblue3") + 
+  labs(x = "", y = "")  +
+  coord_flip()+
+   scale_y_continuous(labels = scales::percent_format())
+
+   
+```
+
++ 53 % das séries são adicionados no mesmo ano de lançamento. Já 87% delas são adicionados com até 5 anos de diferença entre as datas. 
+```{r, fig.width = 11, fig.height = 5, dpi = 250, warning=FALSE, message=FALSE}
+a<-netflixdata %>%
+  select(release_year, type) %>% 
+  filter(type == "TV Show")
+  
+ b<- netflixdata %>% 
+  select(date_added, type) %>% 
+   filter(type == "TV Show") %>% 
+  separate(col=date_added,
+           into = paste('resp',1:2), sep=', ') %>% 
+  select(`resp 2`)
+
+ c<-bind_cols(a,b)%>% 
+     filter(release_year >= 2008)
+ 
+ c %>% 
+  mutate(release_year = as.numeric(release_year),
+         `resp 2` = as.numeric(`resp 2`),
+         dif = (`resp 2`-release_year)) %>% 
+   group_by(dif) %>% 
+   count() %>% 
+   filter(dif != -3) %>% 
+   filter(dif != -2 ) %>%
+   filter(dif != -1) %>% 
+   arrange((dif)) %>% 
+   as.data.frame() %>% 
+   mutate(total = sum(n)) %>% 
+   mutate( Percentual = (n / total)) %>% 
+   top_n(6) %>% 
+   mutate(total_perc = sum(Percentual)) %>% 
+   select(dif, Percentual) %>% 
+    ggplot(aes(x = reorder(dif,Percentual), y = Percentual)) +
+  geom_bar(stat = 'identity', colour = "NA", fill = "cadetblue3") + 
+  labs(x = "", y = "")  +
+  coord_flip()+
+   scale_y_continuous(labels = scales::percent_format())
+
+   
+```
+
++ As duração das séries, variam de 1 até 15 temporadas, e os dados seguem uma distribuição exponencial.
+
+```{r, fig.width = 11, fig.height = 5, dpi = 250, warning=FALSE, message=FALSE}
+# counts
+netflixdata %>% 
+  select(duration, type) %>% 
+  filter(type == "TV Show") %>% 
+  separate(col=duration,
+           into = paste('Season',1:2), sep=' ') %>% 
+  setNames(c("Season", "Season2", "Type")) %>% 
+  mutate(Season = as.numeric(Season)) %>% 
+ggplot(aes(x=`Season`)) +
+  geom_bar(fill = "darkkhaki")
+```
+
++ A distribuição da duração dos filmes segue uma distribuição normal.
+
+```{r, fig.width = 11, fig.height = 5, dpi = 250, warning=FALSE, message=FALSE}
+# counts
+netflixdata %>% 
+  select(duration, type) %>% 
+  filter(type == "Movie") %>% 
+  separate(col=duration,
+           into = paste('Min',1:2), sep=' ') %>% 
+  mutate(`Tempo` = as.numeric(`Min 1`)) %>% 
+ggplot(aes(x=`Tempo`)) +
+  geom_bar(fill = "darkkhaki")
+```
+
+
+
+```{r, results= "hide",warning=FALSE, message=FALSE,echo=FALSE }
+
+# shap_test_data<- netflixdata %>% 
+#   select(duration, type) %>% 
+#   filter(type == "Movie") %>% 
+#   separate(col=duration,
+#            into = paste('Min',1:2), sep=' ') %>% 
+#   mutate(`Tempo` = as.numeric(`Min 1`))
+# 
+# 
+#    
+# shapiro.test(shap_test_data$`Min 1`)
+
+```
+
+
++ 90% dos filmes tem de 52 a 148 minutos de duração. O tempo médio de duração é de 99 minutos (cerca de 1 hora e meia).
+```{r, fig.width = 11, fig.height = 5, dpi = 250 }
+data2<- netflixdata %>% 
+  select(duration, type) %>% 
+  filter(type == "Movie") %>% 
+  separate(col=duration,
+           into = paste('Min',1:2), sep=' ') %>% 
+  mutate(`Tempo` = as.numeric(`Min 1`))
+quantile(data2$Tempo, probs = 0.05)
+quantile(data2$Tempo, probs = 0.95)
+mean(data2$Tempo)
+```
+
++ A tabela abaixo contém os tempos mínimos e máximos dos filmes (em minutos).
+
+```{r,fig.width = 11, fig.height = 5, dpi = 250, warning=FALSE, message=FALSE}
+# counts
+a<-netflixdata %>% 
+  select(duration, type) %>% 
+  filter(type == "Movie") %>% 
+  separate(col=duration,
+           into = paste('Min',1:2), sep=' ') %>% 
+  mutate(`Tempo` = as.numeric(`Min 1`)) %>% 
+  select(Tempo) %>% 
+  top_n(5, desc(Tempo)) 
+
+b<-netflixdata %>% 
+  select(duration, type) %>% 
+  filter(type == "Movie") %>% 
+  separate(col=duration,
+           into = paste('Min',1:2), sep=' ') %>% 
+  mutate(`Tempo` = as.numeric(`Min 1`)) %>% 
+  select(Tempo) %>% 
+  arrange(desc(Tempo)) %>% 
+  as.data.frame() %>% 
+  top_n(5) 
+
+c<-cbind(a,b)
+
+c
+  
+  
+```
+
++ A tabela abaixo mostra a quantidade de filmes incluidos na plataforma nos ultimos 5 anos.
+```{r,fig.width = 11, fig.height = 5, dpi = 250,warning=FALSE, message=FALSE}
+# counts
+netflixdata %>% 
+  select(date_added, type) %>% 
+  filter(type == "Movie") %>% 
+  separate(col=date_added,
+           into = paste('Min',1:2), sep=', ') %>% 
+  select(`Min 2`, type) %>% 
+  group_by(`Min 2`) %>% 
+  count() %>% 
+  arrange(desc(`Min 2`)) %>% 
+  as.data.frame() %>% 
+  top_n(5) %>% 
+  setNames(c("Ano", 'Número de filmes incluidos a plataforma'))
+  
+  
+```
++ Abaixo temos informações sobre a quantidade de séries incluidas na plataforma nos ultimos 5 anos.
+
+```{r,fig.width = 11, fig.height = 5, dpi = 250,warning=FALSE, message=FALSE}
+
+netflixdata %>% 
+  select(date_added, type) %>% 
+  filter(type == "TV Show") %>% 
+  separate(col=date_added,
+           into = paste('Min',1:2), sep=', ') %>% 
+  select(`Min 2`, type) %>% 
+  group_by(`Min 2`) %>% 
+  count() %>% 
+  arrange(desc(`Min 2`)) %>% 
+   as.data.frame() %>% 
+  top_n(5) %>% 
+  setNames(c("Ano", 'Número de TV Shows incluidos a plataforma'))
+  
+  
+  
+```
+
++ Top 5 filmes por data de lançamento e ano. Temos mais quantidade de filmes lançados em 2017 na plataforma do que lançados em outros anos.
+
+```{r,fig.width = 11, fig.height = 5, dpi = 250,warning=FALSE, message=FALSE}
+
+netflixdata %>% 
+  select(release_year, type) %>% 
+  filter(type == "Movie") %>% 
+  group_by(release_year) %>% 
+  count() %>% 
+  arrange(desc(n
+               )) %>% 
+  as.data.frame() %>% 
+  top_n(5) %>% 
+    setNames(c("Ano de Lancamento", 'Número de filmes incluidos a plataforma'))
+  
+  
+  
+```
++ Top 5 séries por data de lançamento e ano. Temos mais quantidade de séries lançadas em 2020 na plataforma do que lançadas em outros anos.
+
+```{r,fig.width = 11, fig.height = 5, dpi = 250,warning=FALSE, message=FALSE}
+# counts
+netflixdata %>% 
+  select(date_added, type) %>% 
+  filter(type == "TV Show") %>% 
+  separate(col=date_added,
+           into = paste('Min',1:2), sep=', ') %>% 
+  select(`Min 2`, type) %>% 
+  group_by(`Min 2`) %>% 
+  count() %>% 
+  arrange(desc(n)) %>% 
+  as.data.frame() %>% 
+  top_n(5) %>% 
+  setNames(c("Ano de Lancamento", 'Número de TV Shows incluidos a plataforma'))
+  
+  
+```
+
+
+```{r,warning=FALSE, message=FALSE}
+
+#início analise de cluster
+# install.packages("prettydoc")
+# install.packages("cluster")
+# install.packages("NbClust")
+# install.packages("Rtsne")
+#install.packages("factoextra")
+library(dplyr)
+library(cluster)
+library(NbClust)
+library(ggplot2)
+library(Rtsne)
+library(prettydoc)
+library(factoextra)
+
+```
+
+```{r, cache= T, warning=FALSE, message=FALSE}
+
+df_netflix<-read.csv("netflix_titles.csv")
+
+#calcular a matriz de distancia para clusterizacao
+matriz_dist <- 
+  df_netflix %>% 
+  #padronizar variaveis numericas para mesma escala
+  mutate_if(is.character, as.factor) %>%
+  daisy(metric = "gower", stand = F) #distancia de gower pois algumas colunas não são numéricas
+  
+
+#numero otimo de clusters
+num_clusters <- NbClust::NbClust(diss = matriz_dist,
+                          data = NULL,
+                          distance = NULL,
+                          method = "complete",
+                          index = "silhouette")
+
+tibble(Value_index = num_clusters$All.index,
+       k = as.numeric(names(num_clusters$All.index))) %>% 
+  ggplot(aes(k, Value_index)) +
+  geom_line() +
+  geom_label(aes(label = k,
+                 col = ifelse(k == num_clusters$Best.nc[1], "otimo", "nao_otimo")),
+             show.legend = F)  #o valor maximo é o valor ótimo
+
+```
+
+```{r, warning=FALSE, message=FALSE}
+cluster.pam <- pam(matriz_dist, k = 2, diss=T)
+
+#summary(cluster)
+
+#adicionando coluna do cluster no data frame
+df_netflix_cluster = cbind(df_netflix, cluster = cluster.pam$clustering)
+head(df_netflix_cluster)
+```
+
+```{r, cache = TRUE, warning=FALSE, message=FALSE}
+clusplot(cluster.pam, shade = TRUE)
+```
+
+
+```{r, warning=FALSE, message=FALSE}
+ df_netflix %>% 
+  mutate(
+         cluster = as.character(cluster.pam$clustering)) %>% 
+  group_by(cluster) %>% 
+ count(type) 
+
+```
+
+```{r, warning=FALSE, message=FALSE}
+  df_netflix %>% 
+  mutate(
+         cluster = as.character(cluster.pam$clustering)) %>% 
+  group_by(cluster) %>% 
+ count(listed_in) 
+```
+
+
+```{r, warning=FALSE, message=FALSE}
+
+
+cluster.pam2 <- pam(df_netflix, k = 2, diss=FALSE)
+fviz_cluster(cluster.pam2, geom = "point", ellipse.type = "norm")
+```
