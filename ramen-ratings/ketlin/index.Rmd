@@ -1,0 +1,215 @@
+---
+title: "Análise Miojo"
+author: "Ketlin Hoffmam"
+date: "`r Sys.Date()`"
+output:
+  prettydoc::html_pretty:
+    theme: Cayman
+    highlight: github
+---
+
++ A base de dados contém informação de 2580 miojos que foram avaliados. As variáveis observadas foram: marca, tipo de embalagem, variedade (nome do produto) e país.
+
+```{r, results= "hide",warning=FALSE, message=FALSE,echo=FALSE}
+# install.packages("countrycode")
+
+library(dplyr)
+library(ggplot2)
+library(countrycode)
+```
+
++ Abaixo estão as marcas que mais apareceram no banco de dados. Nissin é a marca que mais aparece, o que pode representar que ela esta em mais países.
+
+```{r, warning=FALSE, message=FALSE}
+
+ramen <-read.csv("ramen-ratings.csv")
+
+ramen %>% 
+group_by(Brand) %>%
+count() %>% 
+arrange(desc(n)) %>% 
+as.data.frame() %>% 
+ top_n(10) %>% 
+  ggplot(aes(x = reorder(Brand, n), y = n)) +
+         geom_bar(stat = "identity",fill = "tomato")+
+   coord_flip()+
+   labs(x = "Brand", y = "Number of brands in the data")
+
+
+```
+
++ O miojo com embalagem pacote é mais comum.
+
+```{r, warning=FALSE, message=FALSE}
+
+ramen %>% 
+group_by(Style) %>%
+count() %>% 
+arrange(desc(n)) %>% 
+as.data.frame() %>% 
+ top_n(10) %>% 
+  ggplot(aes(x = reorder(Style, n), y = n)) +
+         geom_bar(stat = "identity",fill = "tomato")+
+   coord_flip()+
+   labs(x = "Style", y = "Number of Style in the data")
+
+```
+
++ Esse tabela representa o percentual do tipo de embalagem mais usada, em comparação a outras embalagens, dentro dos continentes. Por exemplo, na américa do Norte, o tipo de embalagem mais utilizada é o do tipo pacote, porém representa 40% do total dos tipos de embalagens utilizadas. Uma curiosidade é que na América latina só é usado 2 tipos de embalagens (Pacote e Copo) já a América do Norte é a que usa mais diferentes tipos de embalagens de todos os continentes, totalizando em 7 tipos diferentes de embalagens.
+
+```{r, warning=FALSE, message=FALSE, echo=FALSE}
+
+
+continent<-countrycode(sourcevar = ramen$Country, origin = "country.name",destination = "region")
+
+ramen_with_continent<- cbind(ramen,continent)
+
+
+group_by_continente<-
+ramen_with_continent %>%
+  na.omit(continent) %>% 
+  group_by(continent,Style) %>% 
+  count() %>% 
+  as.data.frame()
+
+EAP_style<-group_by_continente %>% 
+filter(group_by_continente$continent=="East Asia & Pacific") %>% 
+  mutate(sum = sum(n)) %>% 
+  mutate(Percentual= n/sum) %>% 
+  arrange(desc(n)) %>% 
+  as.data.frame() %>% 
+ top_n(1) 
+
+ECA_style<-group_by_continente %>% 
+filter(group_by_continente$continent=="Europe & Central Asia") %>% 
+  mutate(sum = sum(n)) %>% 
+  mutate(Percentual= n/sum) %>% 
+  arrange(desc(n)) %>% 
+  as.data.frame() %>% 
+ top_n(1)  
+
+LAC_style<-group_by_continente %>% 
+filter(group_by_continente$continent=="Latin America & Caribbean") %>% 
+  mutate(sum = sum(n)) %>% 
+  mutate(Percentual= n/sum) %>% 
+  arrange(desc(n))%>% 
+  as.data.frame() %>% 
+ top_n(1) 
+
+
+
+NAM_style<-group_by_continente %>% 
+filter(group_by_continente$continent=="North America") %>% 
+  mutate(sum = sum(n)) %>% 
+  mutate(Percentual= n/sum) %>% 
+  arrange(desc(n))%>% 
+  as.data.frame() %>% 
+ top_n(1) 
+
+
+SA_style<- group_by_continente %>% 
+filter(group_by_continente$continent=="South Asia") %>% 
+  mutate(sum = sum(n)) %>% 
+  mutate(Percentual= n/sum) %>% 
+  arrange(desc(n))%>% 
+  as.data.frame() %>% 
+ top_n(1) 
+
+Style_continente<-rbind(EAP_style,ECA_style,LAC_style,NAM_style,SA_style)
+
+Style_continente %>% 
+  select(continent, Style, Percentual) %>% 
+ setNames(c("Continent", "Style", "Percentual"))
+
+```
+
++ Esse tabela apresenta a marca de miojo mais evidente dentro dos continentes. Por exemplo, na Europa e Asia Central, a marca Nissin é a marca mais presente entre os miojos e representa 17% de todos os miojos do continente. Observe que 80% dos miojos são da marca Nissin na America Latina e Caribe.
+
+```{r,warning=FALSE, message=FALSE, echo=FALSE}
+
+group_by_continente<-
+ramen_with_continent %>%
+  group_by(continent,Brand) %>% 
+  count() %>% 
+  as.data.frame()
+
+EAP_style<-group_by_continente %>% 
+filter(group_by_continente$continent=="East Asia & Pacific") %>% 
+  mutate(sum = sum(n)) %>% 
+  mutate(Percentual= n/sum) %>% 
+  arrange(desc(n)) %>% 
+  as.data.frame() %>% 
+ top_n(1) 
+
+ECA_style<-group_by_continente %>% 
+filter(group_by_continente$continent=="Europe & Central Asia") %>% 
+  mutate(sum = sum(n)) %>% 
+  mutate(Percentual= n/sum) %>% 
+  arrange(desc(n)) %>% 
+  as.data.frame() %>% 
+ top_n(1)  
+
+LAC_style<-group_by_continente %>% 
+filter(group_by_continente$continent=="Latin America & Caribbean") %>% 
+  mutate(sum = sum(n)) %>% 
+  mutate(Percentual= n/sum) %>% 
+  arrange(desc(n))%>% 
+  as.data.frame() %>% 
+ top_n(1) 
+
+
+NAM_style<-group_by_continente %>% 
+filter(group_by_continente$continent=="North America") %>% 
+  mutate(sum = sum(n)) %>% 
+  mutate(Percentual= n/sum) %>% 
+  arrange(desc(n))%>% 
+  as.data.frame() %>% 
+ top_n(1) 
+
+SA_style<- group_by_continente %>% 
+filter(group_by_continente$continent=="South Asia") %>% 
+  mutate(sum = sum(n)) %>% 
+  mutate(Percentual= n/sum) %>% 
+  arrange(desc(n))%>% 
+  as.data.frame() %>% 
+ top_n(1) 
+
+Style_continente<-rbind(EAP_style,ECA_style,LAC_style,NAM_style,SA_style)
+
+Style_continente %>% 
+  select(continent, Brand, Percentual) %>% 
+   setNames(c("Continent", "Brand", "Percentual"))
+  
+```
+
++ A marca que recebeu mais notas máximas foi a Nissin, recebendo a nota maxima (nota 5 estrelas) em 68 miojos avaliados nesse estudo. 
+
+```{r,warning=FALSE, message=FALSE}
+ramen_with_continent %>%
+  filter(Stars =="5") %>% 
+  group_by(Brand) %>% 
+  count() %>% 
+  arrange(desc(n)) %>% 
+  as.data.frame() %>% 
+   top_n(5)  #qual a marca recebeu mais notas maximas
+
+```
+
++ A base de dados traz premiações dos melhores 10 miojos do ano, sendo que as premiações aconteceram de 2012 até 2016. A marca de miojo que mais foi premiada nesses 4 anos foi a Prima Taste, premiada por 5 vezes.
+
+```{r,warning=FALSE, message=FALSE}
+#marca que ganhou mais o top 10 entre 2012 a 2016 
+  
+
+ramen_with_continent %>% 
+  filter(Top.Ten!='') %>% 
+  filter(Top.Ten!='\n') %>% 
+  group_by(Brand) %>% 
+  count() %>% 
+  arrange(desc(n)) %>% 
+   # setNames(c("Brand"," Number of times won")) %>%
+  as.data.frame() %>%
+  top_n(10)  #brand, n 
+
+```
+
