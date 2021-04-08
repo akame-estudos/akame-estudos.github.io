@@ -1,0 +1,75 @@
+---
+title: "Bate e Volta - BBB"
+author: "Arthur Rocha"
+date: "`r Sys.Date()`"
+output:
+  prettydoc::html_pretty:
+    theme: hpstr
+    highlight: github
+---
+
+```{r include=FALSE}
+## configuracoes de saida dos chunks
+knitr::opts_chunk$set(
+   warning = FALSE,
+   message = FALSE,
+   error = FALSE,
+   eval = TRUE,
+   fig.align = 'center',
+   fig.showtext = TRUE
+)
+
+```
+
+## Introdução
+
+Introduzida na edição de 2020 do Big Brother Brasil, a prova Bate e Volta acontece depois da formação da maioria dos paredões e representa a chance de um dos indicados voltarem à casa sem ir ao paredão.
+
+Essa análise foi feita com base nos 
+
+
+## Libs
+
+```{r}
+library(tidyverse)
+```
+
+## Dados
+
+- Em 2020 houveram 7 provas bate e volta, mas 3 delas não eram baseadas em números e serão desconsideradas da análise. Já em 2021, houveram 9 provas até o momento dessa análise e todas foram baseadas em números premiados.
+
+```{r}
+bate_e_volta <- read_csv("../data/dados_bate_volta.csv")
+```
+
+## Análise
+
+### Os números premiados são aleatoriamente distribuidos?
+
+```{r}
+bate_e_volta %>% 
+  filter(!prova_sem_numeros) %>% 
+  # count(numero[])
+  ggplot(aes(numero_premiado)) + 
+  geom_histogram(aes(fill = case_when(..count.. <= 2 ~ "1",
+                                      ..count.. < 4 ~ "2",
+                                      T ~ "3")),
+                 show.legend = F,
+                 col = "white",
+                 binwidth = 1,
+                 origin = -0.5) + 
+  theme_light() + 
+  scale_x_reverse(breaks = 1:25) +
+  scale_fill_manual(values = c("grey50", "firebrick", "firebrick2")) +
+  xlab("Número Premiado") +
+  ylab("Contagem (Aparições)") +
+  coord_flip() +
+  theme(panel.grid.minor = element_blank(),
+        axis.ticks = element_blank()) + 
+  geom_hline(yintercept = 2.24, linetype = "dashed")
+```
+
+
+- O número 11 foi o mais comum, aparecendo em 4 provas, sendo que em uma das provas (bate e volta 9 de 2021) apareceu 2 vezes.
+
+- Os números 4 e 7 apareceram em 3 provas diferentes, também se destacando dos demais números.
