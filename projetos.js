@@ -1,4 +1,7 @@
 const arthur = [
+{"projeto":"bbb-bate-e-volta",
+"descricao":"character(0)",
+"link":"https://akame-estudos.github.io/bbb-bate-e-volta/arthur"},
 {"projeto":"Netflix",
 "descricao":"Análise de dados do catálogo de filmes e séries da Netflix.",
 "link":"https://akame-estudos.github.io/Netflix/arthur"},
