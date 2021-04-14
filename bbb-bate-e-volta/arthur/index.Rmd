@@ -32,11 +32,18 @@ Essa análise foi feita com base nos
 
 ```{r}
 library(tidyverse)
+library(showtext)
+library(ggtext)
+```
+
+```{r}
+font_add_google("Montserrat", "montserrat")
+showtext_auto()
 ```
 
 ## Dados
 
-- Em 2020 houveram 7 provas bate e volta, mas 3 delas não eram baseadas em números e serão desconsideradas da análise. Já em 2021, houveram 9 provas até o momento dessa análise e todas foram baseadas em números premiados.
+- Em 2020 houveram 7 provas bate e volta, mas 3 delas não eram baseadas em números e serão desconsideradas da análise. Já em 2021, houveram 10 provas até o momento dessa análise e todas foram baseadas em números premiados.
 
 ```{r}
 bate_e_volta <- read_csv("../data/dados_bate_volta.csv")
@@ -46,30 +53,131 @@ bate_e_volta <- read_csv("../data/dados_bate_volta.csv")
 
 ### Os números premiados são aleatoriamente distribuidos?
 
-```{r}
-bate_e_volta %>% 
+```{r, fig.height=6}
+theme_set(theme_minimal(base_size = 12, base_family = "montserrat"))
+## modify plot elements globally (for all following plots)
+theme_update(
+ axis.ticks = element_line(color = "grey92"),
+ axis.ticks.length = unit(.5, "lines"),
+ panel.grid.minor = element_blank(),
+ legend.title = element_text(size = 12),
+ legend.text = element_text(color = "grey30"),
+ plot.title = element_text(size = 18,  color = "#ff9800"),
+ plot.subtitle = element_text(size = 10, color = "grey30"),
+ plot.caption = element_text(size = 8, margin = margin(t = 15),
+                             color = "grey30", hjust = c(0,1)),
+ axis.title.y = element_blank(),
+ axis.text.y = element_blank(),
+ axis.line.y = element_blank(),
+ axis.ticks.y = element_blank(),
+ axis.title.x = element_text(hjust = 1, size = 10),
+ panel.grid.major.y = element_blank()
+)
+
+df_plot <- 
+  bate_e_volta %>% 
   filter(!prova_sem_numeros) %>% 
-  # count(numero[])
-  ggplot(aes(numero_premiado)) + 
-  geom_histogram(aes(fill = case_when(..count.. <= 2 ~ "1",
-                                      ..count.. < 4 ~ "2",
-                                      T ~ "3")),
-                 show.legend = F,
-                 col = "white",
-                 binwidth = 1,
-                 origin = -0.5) + 
-  theme_light() + 
-  scale_x_reverse(breaks = 1:25) +
-  scale_fill_manual(values = c("grey50", "firebrick", "firebrick2")) +
-  xlab("Número Premiado") +
-  ylab("Contagem (Aparições)") +
+  count(numero_premiado) %>% 
+  mutate(numero_premiado = paste0("nº ", numero_premiado),
+         numero_premiado = factor(numero_premiado,
+                                  levels = paste0("nº ", 1:25))) 
+```
+
+```{r, fig.height=6}
+df_plot %>% 
+  ggplot() +
+  geom_segment(aes(x = numero_premiado, xend = numero_premiado,
+                   y = 0, yend = n), col = "#b4b4b4", size = 2) +
+  geom_point(aes(numero_premiado, n), size = 6, col = "#b4b4b4") +
+  geom_point(aes(numero_premiado, n), size = 5, col = "white") +
+  geom_point(aes(numero_premiado, n), size = 3, col = "skyblue") +
+  geom_point(aes(numero_premiado, n), size = 1, col = "black") +
   coord_flip() +
-  theme(panel.grid.minor = element_blank(),
-        axis.ticks = element_blank()) + 
-  geom_hline(yintercept = 2.24, linetype = "dashed")
+  geom_text(aes(numero_premiado, n, label = numero_premiado),
+            size = 3.5, col = "#ff9800", fontface=1, family = "montserrat",
+            hjust = -.5) +
+  labs(title = 'Os números do Bate e Volta são aleatórios?',
+   subtitle = 'Distribuição dos números premiados que apareceram nas provas de Bate e Volta do BBB.',
+   caption = c('akame-estudos.github.io','Dados: Big Brother Brasil edições 20 e 21 (Gshow)'),
+   x = '',
+   y = 'Contagem (Aparições em provas)') +
+  scale_y_continuous(limits = c(0,7), expand = c(0, 0)) 
 ```
 
 
-- O número 11 foi o mais comum, aparecendo em 4 provas, sendo que em uma das provas (bate e volta 9 de 2021) apareceu 2 vezes.
 
-- Os números 4 e 7 apareceram em 3 provas diferentes, também se destacando dos demais números.
+
+```{r, fig.height=6}
+
+df_legenda <- tibble(x=14,y=5,
+                     label = "O número 11 foi o mais comum, aparecendo em 5 provas, sendo que em uma das provas (bate e volta 9 de 2021) apareceu 2 vezes.")
+
+df_plot %>% 
+  mutate(highlight = numero_premiado == "nº 11",
+         line_size = if_else(highlight, 1.8, 1.5)) %>% 
+  ggplot() +
+  geom_segment(aes(x = numero_premiado, xend = numero_premiado,
+                   y = 0, yend = n, col = highlight,
+                   size = highlight),
+               show.legend = F) +
+  geom_point(aes(numero_premiado, n, col = highlight), size = 6, show.legend = F) +
+  geom_point(aes(numero_premiado, n), size = 5, col = "white") +
+  geom_point(aes(numero_premiado, n), size = 3, col = "skyblue") +
+  geom_point(aes(numero_premiado, n), size = 1, col = "black") +
+  coord_flip() +
+  geom_text(aes(numero_premiado, n, label = numero_premiado,
+                col = highlight),
+            size = 3.5,
+            fontface=1,
+            family = "montserrat",
+            hjust = -.5, show.legend = F) +
+  labs(title = 'Os números do Bate e Volta são aleatórios?',
+   subtitle = 'Distribuição dos números premiados que apareceram nas provas de Bate e Volta do BBB.',
+   caption = c('akame-estudos.github.io','Dados: Big Brother Brasil edições 20 e 21 (Gshow)'),
+   x = '',
+   y = 'Contagem (Aparições em provas)') +
+  scale_y_continuous(limits = c(0,7), expand = c(0, 0))  + 
+  scale_color_manual(values = c("grey90", "#ff9800")) + 
+  scale_size_manual(values = c(1, 2.5)) +
+  geom_textbox(data = df_legenda, aes(x,y, label = label),
+               col = "#ff9800", family = "montserrat", size = 3.5)
+```
+
+
+```{r, fig.height=6}
+df_legenda <- tibble(x=14,y=4.7,
+                     label = "Essa seria a frequência de aparições esperada caso houvesse equilíbrio nos números premiados. Apesar disso, é difícil concluir algo concreto por conta da baixa quantidade de provas realizadas.")
+
+df_plot %>% 
+  ggplot() +
+  geom_segment(aes(x = numero_premiado, xend = numero_premiado,
+                   y = 0, yend = n), col = "grey90", size = 1) +
+  geom_point(aes(numero_premiado, n), size = 6, col = "grey90") +
+  geom_point(aes(numero_premiado, n), size = 5, col = "white") +
+  geom_point(aes(numero_premiado, n), size = 3, col = "skyblue") +
+  geom_point(aes(numero_premiado, n), size = 1, col = "black") +
+  coord_flip() +
+  geom_text(aes(numero_premiado, n, label = numero_premiado),
+            size = 3.5, col = "grey90", fontface=1, family = "montserrat",
+            hjust = -.5) +
+  labs(title = 'Os números do Bate e Volta são aleatórios?',
+   subtitle = 'Distribuição dos números premiados que apareceram nas provas de Bate e Volta do BBB.',
+   caption = c('akame-estudos.github.io','Dados: Big Brother Brasil edições 20 e 21 (Gshow)'),
+   x = '',
+   y = 'Contagem (Aparições em provas)') +
+  scale_y_continuous(limits = c(0,7), expand = c(0, 0)) +
+  geom_hline(yintercept = 2.82, col = "#ff9800", 
+             linetype = "dashed") +
+  annotate(
+    geom = "curve",
+    x = 14,
+    y = 3.8,
+    yend = 2.85 ,
+    xend = 17,
+    curvature = .3,
+    arrow = arrow(length = unit(2, "mm")),
+    col = "#ff9800") +
+    geom_textbox(data = df_legenda, aes(x,y, label = label),
+               col = "#ff9800", family = "montserrat", size = 3.5, width = .4) 
+```
+
