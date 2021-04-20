@@ -464,6 +464,8 @@ library(factoextra)
 ```
 
 ```{r, cache= T, warning=FALSE, message=FALSE}
+data(agriculture)
+d.agr <- daisy(agriculture, metric = "euclidean", stand = FALSE)
 
 df_netflix<-read.csv("netflix_titles.csv")
 
@@ -473,8 +475,9 @@ matriz_dist <-
   #padronizar variaveis numericas para mesma escala
   mutate_if(is.character, as.factor) %>%
   daisy(metric = "gower", stand = F) #distancia de gower pois algumas colunas não são numéricas
-  
 
+dim(df_netflix)  
+glimpse(matriz_dist)
 #numero otimo de clusters
 num_clusters <- NbClust::NbClust(diss = matriz_dist,
                           data = NULL,
@@ -526,8 +529,8 @@ clusplot(cluster.pam, shade = TRUE)
 
 
 ```{r, warning=FALSE, message=FALSE}
+dat[which(title(df_netflix) %in% c("")) + c(-1, 1), ]
 
-
-cluster.pam2 <- pam(df_netflix, k = 2, diss=FALSE)
-fviz_cluster(cluster.pam2, geom = "point", ellipse.type = "norm")
+# cluster.pam2 <- pam(df_netflix, k = 2, diss=FALSE)
+# fviz_cluster(cluster.pam2, geom = "point", ellipse.type = "norm")
 ```
