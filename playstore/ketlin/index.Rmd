@@ -1,0 +1,214 @@
+---
+title: "Descritiva dos Aplicativos da Google Play Store"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: colum
+    vertical_layout: fill
+    theme: "spacelab"
+---
+
+
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+library(dplyr)
+library(ggplot2)
+library(kableExtra)
+```
+
+Column
+-----------------------------------------------------------------------
+
+
+### Proporção de Aplicativos Pagos e Gratuítos
+
+```{r, fig.align="center"}
+
+data_app<-read.csv("googleplaystore.csv")
+
+# glimpse(data_app)
+
+grafico_pizza<-data_app %>% group_by(Type) %>% 
+  count() %>% 
+ungroup()%>% 
+  arrange(desc(Type)) %>%
+  mutate(percentage = round(n/sum(n),3)*100,
+         lab.pos = cumsum(percentage)-.5*percentage) %>% 
+  filter(n>1) %>% 
+  select(Type, percentage, lab.pos) %>% 
+  setNames(c("Tipo", "percentage", "lab.pos"))
+ 
+grafico_pizza$Tipo<-as.character(grafico_pizza$Tipo)
+ grafico_pizza$Tipo[grafico_pizza$Tipo == "Free"] <- "Gratuíto"
+  grafico_pizza$Tipo[grafico_pizza$Tipo == "Paid"] <- "Pago"
+
+
+ggplot(data = grafico_pizza,
+       aes(x = 2, y = percentage, fill = Tipo))+
+geom_bar(stat = "identity", fill = c( "darksalmon","Lightblue"))+
+  coord_polar("y", start = 200) +
+  geom_text(aes(y = lab.pos, label = paste(Tipo, " ",percentage,"%", sep = "")), size = 7) +
+    theme_void() +
+  xlim(0.875,2.5)
+
+```
+
+
+### Categoria de Preço dos Aplicativos Pagos
+
+```{r, fig.align="center"}
+
+####categorias de preço
+library(ggplot2)
+library(forcats)
+ data_app %>% mutate(Price = as.double(gsub("\\$", "", Price))) %>% 
+  filter(Type == "Paid") %>% 
+  na.omit(Price) %>% 
+mutate(cat = case_when(Price < 5 ~ "Até $5,00",
+                            Price> 5 & Price<=10 ~ "$5,00 - $10,00",
+                            Price> 10 & Price<=20 ~ "$10,00 - $20,00",
+                            Price> 20 & Price<=100 ~ "$20,00 - $100,00",
+                   
+                            T ~ "Acima de $100,00")) %>% 
+  group_by(cat) %>% 
+  count() %>% 
+   as.data.frame() %>%
+    mutate(cat = fct_reorder(cat, (n))) %>%
+  # arrange(desc(n)) %>%
+    ggplot(aes(x = cat, n), y = n, fill=cat) +
+  geom_bar(stat = 'identity', colour = "NA", fill = "darksalmon") + 
+  labs( x="Valor", y="Quantidade de App") +
+  coord_flip() +
+   theme(axis.text=element_text(size=20),
+        axis.title=element_text(size=20,face="bold", color = "Grey"))
+   
+
+```
+
+Column 
+-----------------------------------------------------------------------
+
+
+
+### Aplicativos com mais de 1 bilhão de Instalações
+
+```{r, fig.height=0.1, fig.align="center"}
+### Quantidade de app com mais de 1 bilhao de instalações 
+
+######mais de 1 bilhão de instalações somente 58
+# data_app %>% 
+#   group_by(Installs) %>% 
+#   count() %>% 
+#   arrange(desc(Installs))
+
+valueBox(58, icon = "fa-tag")
+```
+
+
+### Top 5 categorias mais baixadas
+
+```{r,fig.align="center", }
+
+######### top 5 categorias mais baixadas
+
+
+categ<-data_app %>% group_by(Category) %>% 
+  count() %>% 
+  arrange(desc(n)) %>% 
+  as.data.frame() %>% 
+  top_n(5) %>% 
+  as.data.frame() %>%
+    mutate(cat = fct_reorder(Category, ((n))))
+  
+
+categ$Category<-as.character(categ$Category)
+ categ$Category[categ$Category == "FAMILY"] <- "Família"
+  categ$Category[categ$Category == "GAME"] <- "Jogos"
+   categ$Category[categ$Category == "TOOLS"] <- "Ferramentas"
+    categ$Category[categ$Category == "MEDICAL"] <- "Medicina"
+     categ$Category[categ$Category == "BUSINESS"] <- "Negócios"
+ 
+  # arrange(desc(n)) %>%
+    ggplot(data = categ, aes(x = Category, n), y = n, fill=Category) +
+  geom_bar(stat = 'identity', colour = "NA", fill = "darksalmon") + 
+ labs( y="Quantidade de App", x="Categoria") +
+    coord_flip() +
+   theme(axis.text=element_text(size=15),
+        axis.title=element_text(size=17,face="bold", color = "Grey"))
+   
+```
+
+Column 
+-----------------------------------------------------------------------
+
+
+
+### Aplicativos com mais de 1 bilhão de dowloads (das top 5 categorias).
+
+```{r, fig.align="center"}
+#Subway Surfers, Google, googleplaygames tem mias de 10 milhoes das categorias mais baixadas
+
+
+categ<- data_app %>% 
+  filter(Installs == "1,000,000,000+") %>% 
+  filter(Category == "FAMILY" | Category =="GAME" | Category =="TOOLS" | Category =="MEDICAL" | Category =="BUSSINESS") %>% 
+  select(App, Category) %>% 
+setNames(c("Nome App", "Categoria")) %>% 
+  unique() 
+
+categ$Categoria<-as.character(categ$Categoria)
+ categ$Categoria[categ$Categoria == "FAMILY"] <- "Família"
+  categ$Categoria[categ$Categoria == "GAME"] <- "Jogos"
+   categ$Categoria[categ$Categoria == "TOOLS"] <- "Ferramentas"
+
+     
+     categ %>% 
+   kable(row.names = F) %>%
+  kable_styling()
+```
+
+
+### Distribuição das Notas dos Aplicativos por Tipo
+```{r , fig.height= 7, fig.width= 8}
+# summary(data_app$Rating)
+# 
+# data_app %>% 
+#   group_by(Rating) %>% 
+#   count()
+
+#há uma nota incorreta, vou excluir
+# 
+# data_app %>%
+#   filter(Rating <=5) %>% 
+#   ggplot( aes(x=Rating)) + 
+#   geom_histogram(breaks=seq(1, 5, by=0.25), 
+#                  col="NA", 
+#                  fill="darksalmon")+
+#                # alpha = .2) + #regular o tom da cor 
+#   # labs(title="Histogram for Age", x="Age", y="Count") 
+#    labs( x="Nota", y="Quantidade") +
+#    theme(axis.text=element_text(size=25),
+#         axis.title=element_text(size=25,face="bold", color = "Grey"))
+
+#####
+
+data<-data_app %>%
+  filter(Rating <=5) %>% 
+  select(Rating, Type) %>% 
+  setNames(c("Rating", "Tipo"))
+
+
+data$Tipo<-as.character(data$Tipo)
+ data$Tipo[data$Tipo == "Free"] <- "Gratuíto"
+  data$Tipo[data$Tipo == "Paid"] <- "Pago"
+
+ggplot(data = data, aes(x=Rating, fill=Tipo, color=Tipo)) +
+  geom_histogram(position="identity")+
+  labs( x="Nota", y="Quantidade de App") +
+  scale_color_manual(values=c("Lightblue", "darksalmon"))+
+  scale_fill_manual(values=c(" Lightblue", "darksalmon"))+
+  theme(axis.text=element_text(size=23),
+        axis.title=element_text(size=23,face="bold", color = "Grey"),
+        legend.text = element_text( size = 23),
+        legend.title = element_text(size = 23))
+```
