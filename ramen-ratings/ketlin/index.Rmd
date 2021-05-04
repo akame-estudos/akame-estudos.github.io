@@ -8,7 +8,7 @@ output:
     highlight: github
 ---
 
-+ A base de dados contém informação de 2580 miojos e suas respectivas avaliações. As variáveis observadas foram: marca, tipo de embalagem, variedade (nome do produto), país e a nota.
++ A base de dados contém informações de 2580 miojos e suas respectivas avaliações. As variáveis observadas foram: marca, tipo de embalagem, variedade (nome do produto), país e a nota.
 
 ```{r, results= "hide",warning=FALSE, message=FALSE,echo=FALSE}
 # install.packages("countrycode")
@@ -22,7 +22,7 @@ library(pander)
 
 + Abaixo estão as marcas que mais apareceram no banco de dados. Nissin é a marca que mais aparece, o que pode representar que ela esta em mais países.
 
-```{r, warning=FALSE, message=FALSE}
+```{r, warning=FALSE, message=FALSE, }
 
 ramen <-read.csv("ramen-ratings.csv")
 
@@ -222,7 +222,7 @@ ramen_with_continent %>%
   arrange(desc(n)) %>% 
   as.data.frame() %>%
   top_n(10) %>%  #brand, n 
-  setNames(c("Marca", "Quantidade de Premiações (Top 10)")) %>% 
+  setNames(c("Marca", "Quantidade de Premiações")) %>% 
 kable(row.names = F) %>%
   kable_styling() 
   

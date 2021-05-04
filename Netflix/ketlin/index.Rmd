@@ -1,15 +1,5 @@
 ---
-title: "Nextflix Análise, cluster"
-author: "Ketlin Hoffmam"
-date: "`r Sys.Date()`"
-output:
-  prettydoc::html_pretty:
-    theme: Cayman
-    highlight: github
----
-
----
-title: "Nextflix Análise, cluster"
+title: "Análise dos dados da Netflix "
 author: "Ketlin Hoffmam"
 date: "`r Sys.Date()`"
 output:
@@ -40,10 +30,12 @@ output:
 library(dplyr)
 library(ggplot2)
 library(tidyr)
-
+library(kableExtra)
 netflixdata<-read.csv("netflix_titles.csv")
 
 colnames(netflixdata)
+
+
 
 
 ```
@@ -51,26 +43,33 @@ colnames(netflixdata)
 + Sobre a categoria do programa, temos 69% de filmes e 31% de séries.
 
 ```{r, results= "hide",warning=FALSE, message=FALSE, fig.width =6, fig.height = 4, dpi = 250}
+netflixdata2<-netflixdata
 
-
-a<-
-netflixdata %>% 
+netflixdata2$type<-as.character(netflixdata2$type)
+ netflixdata2$type[netflixdata2$type == "Movie"] <- "Filme"
+  netflixdata2$type[netflixdata2$type == "TV Show"] <- "Série"
+  
+grafico_pizza<-
+netflixdata2 %>% 
   select(type) %>% 
-  group_by(type) %>% 
+group_by(type) %>% 
   count() %>% 
- as.data.frame() %>%
-  mutate(soma = sum(n)) %>% 
-  mutate(percentual = n/soma) %>% 
-  mutate(percentual=round(percentual,2))
+ungroup()%>% 
+  arrange(desc(type)) %>%
+  mutate(percentage = round(n/sum(n),2)*100,
+         lab.pos = cumsum(percentage)-.5*percentage) %>% 
+  filter(n>1) %>% 
+  select(type, percentage, lab.pos) %>% 
+  setNames(c("Tipo", "percentage", "lab.pos"))
 
 
-ggplot(a, aes(x="", y =percentual, fill= type))+
- geom_bar(width = 1, stat = "identity")+
-  coord_polar("y")+scale_fill_brewer(palette="Dark2") +
-   #  blank_theme +
-   # theme(axis.text.x=element_blank()) +
- geom_text(aes(y = a$percentual/4 + c(0, cumsum(a$percentual)[-length(a$percentual)]), 
-                label = 1-a$percentual ), size=5)
+ggplot(data = grafico_pizza,
+       aes(x = 2, y = percentage, fill = Tipo))+
+geom_bar(stat = "identity", fill = c( "deepskyblue4","cadetblue3"))+
+  coord_polar("y", start = 200) +
+  geom_text(aes(y = lab.pos, label = paste(Tipo, " ",percentage,"%", sep = "")), size = 6) +
+    theme_void() +
+  xlim(0.875,2.5)
 
 
 
@@ -93,11 +92,11 @@ arrange(desc(n)) %>%
 filter(respostas != "") %>% 
   as.data.frame() %>% 
   top_n(10) %>% 
-setNames(c("Diretor", "Número de filmes / TV Show")) %>% 
-  ggplot(aes(x = reorder(Diretor,`Número de filmes / TV Show`), y = `Número de filmes / TV Show`, fill=x)) +
-  geom_bar(stat = 'identity', colour = "NA", fill = "darksalmon") + 
-  labs(x = "", y = "")  +
-  coord_flip() 
+setNames(c("Diretor", "Quantidade de filmes / Séries")) %>% 
+   kable(row.names = F) %>%
+  kable_styling()
+  
+  
   
 ```
 
@@ -117,11 +116,9 @@ arrange(desc(n)) %>%
 filter(respostas != "") %>% 
   as.data.frame() %>% 
   top_n(9) %>% 
-setNames(c("Elenco", "Número de filmes / TV Show")) %>% 
-  ggplot(aes(x = reorder(Elenco,`Número de filmes / TV Show`), y = `Número de filmes / TV Show`)) +
-  geom_bar(stat = 'identity', colour = "NA", fill = "darksalmon") + 
-  labs(x = "", y = "")  +
-  coord_flip() 
+setNames(c("Elenco", "Quantidade de filmes / Séries")) %>% 
+    kable(row.names = F) %>%
+  kable_styling()
   
 ```
 
@@ -142,10 +139,10 @@ arrange(desc(n)) %>%
 filter(respostas != "") %>% 
   as.data.frame()%>%
   top_n(10) %>%
-setNames(c("Região", "Número de filmes")) %>% 
-  ggplot(aes(x = reorder(Região,`Número de filmes`), y = `Número de filmes`)) +
+setNames(c("Região", "Quantidade de filmes")) %>% 
+  ggplot(aes(x = reorder(Região,`Quantidade de filmes`), y = `Quantidade de filmes`)) +
   geom_bar(stat = 'identity', colour = "NA", fill = "cadetblue3") + 
-  labs(x = "", y = "")  +
+  labs(x = "País", y = "Quantidade de Filmes")  +
   coord_flip() 
 
   
@@ -168,11 +165,11 @@ arrange(desc(n)) %>%
 filter(respostas != "") %>% 
   as.data.frame()%>%
   top_n(10) %>%
-setNames(c("Região", "Número de TV Show")) %>% 
-  setNames(c("Região", "Número de TV Show")) %>% 
-  ggplot(aes(x = reorder(Região,`Número de TV Show`), y = `Número de TV Show`)) +
+setNames(c("Região", "Quantidade de Séries")) %>% 
+  setNames(c("Região", "Quantidade de Séries")) %>% 
+  ggplot(aes(x = reorder(Região,`Quantidade de Séries`), y = `Quantidade de Séries`)) +
   geom_bar(stat = 'identity', colour = "NA", fill = "cadetblue3") + 
-  labs(x = "", y = "")  +
+  labs(x = "País", y = "Quantidade de Séries")  +
   coord_flip() 
   
 ```
@@ -180,7 +177,8 @@ setNames(c("Região", "Número de TV Show")) %>%
 + Quanto tempo o Netflix leva para colocar um filme, após o seu lançamento? Para isso, vamos excluir os títulos que tem data de lançamento menor do que a existência da Netflix (pode ser verificada a partir da primeira inclusão. Podemos ver que foi em 2008), a fim de não influenciar a conclusão de uma forma errônea.
 
 ```{r, fig.width = 11, fig.height = 5, dpi = 250, warning=FALSE, message=FALSE}
-netflixdata %>%
+
+netflixdata2 %>%
   select(date_added, type) %>% 
   separate(col=date_added,
            into = paste('resp',1:2), sep=', ') %>% 
@@ -191,6 +189,7 @@ netflixdata %>%
   na.omit(n) %>% 
   arrange(`resp 2`) %>% 
  ggplot(aes(x = `resp 2` , y = n, group = type, colour = type)) +
+  labs(x = "Ano da Inclusão", y = "Quantidade")  +
   geom_line(size = 3)
 ```
 
@@ -228,8 +227,7 @@ a<-netflixdata %>%
    select(dif, Percentual) %>% 
     ggplot(aes(x = reorder(dif,Percentual), y = Percentual)) +
   geom_bar(stat = 'identity', colour = "NA", fill = "cadetblue3") + 
-  labs(x = "", y = "")  +
-  coord_flip()+
+  labs(x = "Ano", y = "Percentual")  +
    scale_y_continuous(labels = scales::percent_format())
 
    
@@ -269,8 +267,7 @@ a<-netflixdata %>%
    select(dif, Percentual) %>% 
     ggplot(aes(x = reorder(dif,Percentual), y = Percentual)) +
   geom_bar(stat = 'identity', colour = "NA", fill = "cadetblue3") + 
-  labs(x = "", y = "")  +
-  coord_flip()+
+  labs(x = "Ano", y = "Percentual")  +
    scale_y_continuous(labels = scales::percent_format())
 
    
@@ -288,7 +285,8 @@ netflixdata %>%
   setNames(c("Season", "Season2", "Type")) %>% 
   mutate(Season = as.numeric(Season)) %>% 
 ggplot(aes(x=`Season`)) +
-  geom_bar(fill = "darkkhaki")
+  geom_bar(fill = "cadetblue3")+
+    labs(x = "Quantidade de Temporadas", y = "Quantidade de Séries")  
 ```
 
 + A distribuição da duração dos filmes segue uma distribuição normal.
@@ -302,7 +300,8 @@ netflixdata %>%
            into = paste('Min',1:2), sep=' ') %>% 
   mutate(`Tempo` = as.numeric(`Min 1`)) %>% 
 ggplot(aes(x=`Tempo`)) +
-  geom_bar(fill = "darkkhaki")
+  geom_bar(fill = "cadetblue3")+
+  labs(x = "Tempo (em minutos)", y = "Quantidade de Filmes")  
 ```
 
 
@@ -358,19 +357,16 @@ b<-netflixdata %>%
   select(Tempo) %>% 
   arrange(desc(Tempo)) %>% 
   as.data.frame() %>% 
-  top_n(5) 
+  top_n(5) %>% 
+   kable(row.names = F) %>%
+  kable_styling()
 
-c<-cbind(a,b)
-
-c
-  
-  
 ```
 
-+ A tabela abaixo mostra a quantidade de filmes incluidos na plataforma nos ultimos 5 anos.
++ A tabela abaixo mostra a quantidade de filmes incluídos na plataforma nos ultimos 5 anos.
 ```{r,fig.width = 11, fig.height = 5, dpi = 250,warning=FALSE, message=FALSE}
 # counts
-netflixdata %>% 
+df_filme<-netflixdata %>% 
   select(date_added, type) %>% 
   filter(type == "Movie") %>% 
   separate(col=date_added,
@@ -381,15 +377,17 @@ netflixdata %>%
   arrange(desc(`Min 2`)) %>% 
   as.data.frame() %>% 
   top_n(5) %>% 
-  setNames(c("Ano", 'Número de filmes incluidos a plataforma'))
+  setNames(c("Ano", 'Número')) 
   
-  
+ x<-"Filme"
+ x2<- rep(x, 5)  
+ df_filme[,"Tipo"] <- x2
 ```
-+ Abaixo temos informações sobre a quantidade de séries incluidas na plataforma nos ultimos 5 anos.
++ Abaixo temos informações sobre a quantidade de séries incluídas na plataforma nos ultimos 5 anos.
 
 ```{r,fig.width = 11, fig.height = 5, dpi = 250,warning=FALSE, message=FALSE}
 
-netflixdata %>% 
+df_serie<-netflixdata %>% 
   select(date_added, type) %>% 
   filter(type == "TV Show") %>% 
   separate(col=date_added,
@@ -400,10 +398,19 @@ netflixdata %>%
   arrange(desc(`Min 2`)) %>% 
    as.data.frame() %>% 
   top_n(5) %>% 
-  setNames(c("Ano", 'Número de TV Shows incluidos a plataforma'))
+  setNames(c("Ano", 'Número'))
   
-  
-  
+x<-"Série"
+ x1<- rep(x, 5) 
+   df_serie[,"Tipo"] <- x1
+   
+   df_final<-bind_rows(df_serie, df_filme)
+      
+     df_final %>% 
+       ggplot(aes(x=`Ano`, y=`Número`, group = Tipo, colour = Tipo)) +
+  labs(x = "Ano da Inclusão", y = "Quantidade")  +
+  geom_line(size = 3)
+   
 ```
 
 + Top 5 filmes por data de lançamento e ano. Temos mais quantidade de filmes lançados em 2017 na plataforma do que lançados em outros anos.
@@ -419,8 +426,9 @@ netflixdata %>%
                )) %>% 
   as.data.frame() %>% 
   top_n(5) %>% 
-    setNames(c("Ano de Lancamento", 'Número de filmes incluidos a plataforma'))
-  
+    setNames(c("Ano de Lancamento", 'Quantidade de filmes incluídos na plataforma')) %>% 
+    kable(row.names = F) %>%
+  kable_styling()
   
   
 ```
@@ -439,98 +447,10 @@ netflixdata %>%
   arrange(desc(n)) %>% 
   as.data.frame() %>% 
   top_n(5) %>% 
-  setNames(c("Ano de Lancamento", 'Número de TV Shows incluidos a plataforma'))
+  setNames(c("Ano de Lancamento", 'Quantidade de Séries incluídas na plataforma')) %>% 
+  kable(row.names = F) %>%
+  kable_styling()
   
   
 ```
 
-
-```{r,warning=FALSE, message=FALSE}
-
-#início analise de cluster
-# install.packages("prettydoc")
-# install.packages("cluster")
-# install.packages("NbClust")
-# install.packages("Rtsne")
-#install.packages("factoextra")
-library(dplyr)
-library(cluster)
-library(NbClust)
-library(ggplot2)
-library(Rtsne)
-library(prettydoc)
-library(factoextra)
-
-```
-
-```{r, cache= T, warning=FALSE, message=FALSE}
-data(agriculture)
-d.agr <- daisy(agriculture, metric = "euclidean", stand = FALSE)
-
-df_netflix<-read.csv("netflix_titles.csv")
-
-#calcular a matriz de distancia para clusterizacao
-matriz_dist <- 
-  df_netflix %>% 
-  #padronizar variaveis numericas para mesma escala
-  mutate_if(is.character, as.factor) %>%
-  daisy(metric = "gower", stand = F) #distancia de gower pois algumas colunas não são numéricas
-
-dim(df_netflix)  
-glimpse(matriz_dist)
-#numero otimo de clusters
-num_clusters <- NbClust::NbClust(diss = matriz_dist,
-                          data = NULL,
-                          distance = NULL,
-                          method = "complete",
-                          index = "silhouette")
-
-tibble(Value_index = num_clusters$All.index,
-       k = as.numeric(names(num_clusters$All.index))) %>% 
-  ggplot(aes(k, Value_index)) +
-  geom_line() +
-  geom_label(aes(label = k,
-                 col = ifelse(k == num_clusters$Best.nc[1], "otimo", "nao_otimo")),
-             show.legend = F)  #o valor maximo é o valor ótimo
-
-```
-
-```{r, warning=FALSE, message=FALSE}
-cluster.pam <- pam(matriz_dist, k = 2, diss=T)
-
-#summary(cluster)
-
-#adicionando coluna do cluster no data frame
-df_netflix_cluster = cbind(df_netflix, cluster = cluster.pam$clustering)
-head(df_netflix_cluster)
-```
-
-```{r, cache = TRUE, warning=FALSE, message=FALSE}
-clusplot(cluster.pam, shade = TRUE)
-```
-
-
-```{r, warning=FALSE, message=FALSE}
- df_netflix %>% 
-  mutate(
-         cluster = as.character(cluster.pam$clustering)) %>% 
-  group_by(cluster) %>% 
- count(type) 
-
-```
-
-```{r, warning=FALSE, message=FALSE}
-  df_netflix %>% 
-  mutate(
-         cluster = as.character(cluster.pam$clustering)) %>% 
-  group_by(cluster) %>% 
- count(listed_in) 
-```
-
-
-```{r, warning=FALSE, message=FALSE}
-dat[which(title(df_netflix) %in% c("")) + c(-1, 1), ]
-
-# cluster.pam2 <- pam(df_netflix, k = 2, diss=FALSE)
-# fviz_cluster(cluster.pam2, geom = "point", ellipse.type = "norm")
-```

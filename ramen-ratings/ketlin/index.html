@@ -155,7 +155,7 @@ code span.ot { color: #007020; }
 
 <section class="main-content">
 <ul>
-<li><p>A base de dados contém informação de 2580 miojos e suas respectivas avaliações. As variáveis observadas foram: marca, tipo de embalagem, variedade (nome do produto), país e a nota.</p></li>
+<li><p>A base de dados contém informações de 2580 miojos e suas respectivas avaliações. As variáveis observadas foram: marca, tipo de embalagem, variedade (nome do produto), país e a nota.</p></li>
 <li><p>Abaixo estão as marcas que mais apareceram no banco de dados. Nissin é a marca que mais aparece, o que pode representar que ela esta em mais países.</p></li>
 </ul>
 <div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><a class="sourceLine" id="cb1-1" data-line-number="1">ramen &lt;-<span class="kw">read.csv</span>(<span class="st">&quot;ramen-ratings.csv&quot;</span>)</a>
@@ -424,7 +424,7 @@ Paldo
 <a class="sourceLine" id="cb4-6" data-line-number="6"><span class="st">  </span><span class="kw">arrange</span>(<span class="kw">desc</span>(n)) <span class="op">%&gt;%</span><span class="st"> </span></a>
 <a class="sourceLine" id="cb4-7" data-line-number="7"><span class="st">  </span><span class="kw">as.data.frame</span>() <span class="op">%&gt;%</span></a>
 <a class="sourceLine" id="cb4-8" data-line-number="8"><span class="st">  </span><span class="kw">top_n</span>(<span class="dv">10</span>) <span class="op">%&gt;%</span><span class="st">  </span><span class="co">#brand, n </span></a>
-<a class="sourceLine" id="cb4-9" data-line-number="9"><span class="st">  </span><span class="kw">setNames</span>(<span class="kw">c</span>(<span class="st">&quot;Marca&quot;</span>, <span class="st">&quot;Quantidade de Premiações (Top 10)&quot;</span>)) <span class="op">%&gt;%</span><span class="st"> </span></a>
+<a class="sourceLine" id="cb4-9" data-line-number="9"><span class="st">  </span><span class="kw">setNames</span>(<span class="kw">c</span>(<span class="st">&quot;Marca&quot;</span>, <span class="st">&quot;Quantidade de Premiações&quot;</span>)) <span class="op">%&gt;%</span><span class="st"> </span></a>
 <a class="sourceLine" id="cb4-10" data-line-number="10"><span class="kw">kable</span>(<span class="dt">row.names =</span> F) <span class="op">%&gt;%</span></a>
 <a class="sourceLine" id="cb4-11" data-line-number="11"><span class="st">  </span><span class="kw">kable_styling</span>() </a></code></pre></div>
 <table class="table" style="margin-left: auto; margin-right: auto;">
@@ -434,7 +434,7 @@ Paldo
 Marca
 </th>
 <th style="text-align:right;">
-Quantidade de Premiações (Top 10)
+Quantidade de Premiações
 </th>
 </tr>
 </thead>
